@@ -25,11 +25,15 @@ import textwrap
 import urllib
 
 try:
+  # python 2
   from httplib import HTTPConnection, HTTPSConnection, HTTPException, NO_CONTENT
+  from urllib import urlencode
 except:
+  # python 3
   from http import HTTPStatus
   NO_CONTENT = HTTPStatus.NO_CONTENT
   from http.client import HTTPConnection, HTTPSConnection, HTTPException
+  from urllib.parse import urlencode
   raw_input = input
   unicode = str
 
@@ -48,7 +52,7 @@ ST_CHECKSTYLE_IGNORED_RULES_AUTOFORMATTER = ST_CHECKSTYLE_IGNORED_RULES_COMMON +
 class RESTClient(object):
 
   def __init__(self, name, host, base_uri='', ssl=False, is_json=True, headers=None,
-      auth_type='Basic', port=None, wrap_json_objects=True):
+      auth_type='Basic', port=None, wrap_json_objects=False):
     self._name = name
     self._host = host
     self._base_uri = base_uri
@@ -196,9 +200,11 @@ class RESTClient(object):
       if self._headers.get('Content-Type') == 'application/json':
         body = json.dumps(body)
       else:
-        body = urllib.urlencode(body)
+        body = urlencode(body)
     if params:
-      uri = "%s?%s" % (uri, urllib.urlencode(params))
+      uri = "%s?%s" % (uri, urlencode(params))
+    full_uri = self._base_uri + uri
+    # print("requeset: '%s', headers: '%s'" % (full_uri, self._headers))
     conn.request(method, self._base_uri + uri, body=body,
         headers=self._headers)
     return self._process_response(conn)
@@ -211,6 +217,9 @@ class RESTClient(object):
 
   def _put(self, uri, body=None, params=None):
     return self._request('PUT', uri, body=body, params=params)
+
+  def _delete(self, uri, body=None, params=None):
+    return self._request('DELETE', uri, body=body, params=params)
 
   def close(self):
     if self._conn:
