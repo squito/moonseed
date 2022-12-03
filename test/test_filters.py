@@ -49,8 +49,6 @@ class TestFilters(unittest.TestCase):
     self.assertIn("567", f._id_to_file)
 
 
-
-
   def test_sync_filters_from_dir(self):
     shutil.copytree(self.input_filter_dir, self.working_filter_dir)
     file_to_orig_json = {}
@@ -71,7 +69,7 @@ class TestFilters(unittest.TestCase):
 
     fs = filters.Filters(mock_client, self.working_filter_dir)
 
-    fs.sync_filters_from_dir(self.working_filter_dir)
+    fs.sync_filters_from_dir()
 
     mock_client._put.assert_called_with(
       "/api/2/filter/1",
@@ -93,17 +91,40 @@ class TestFilters(unittest.TestCase):
     self.assertEqual(exp["simple_1.json"], fs._id_to_filter["123"])
 
   def test_sync_filters_from_server(self):
+    os.makedirs(self.working_filter_dir)
     mock_client = mock.Mock()
+
+    # Filter 1 does not have a local file, so we should mirror it locally
+    # Filter 2 does have a local file, but with different contents.  Keep its
+    #   comment.
+    local_filter_2 = {"name":"Flippy_orig", "jql":"zam", "id":"2", "comment": "a comment"}
+    filter_2_path = self.working_filter_dir + "filter_2_file.json"
+    with open(filter_2_path, "w") as f_out:
+      json.dump(local_filter_2, f_out)
+
     f = filters.Filters(mock_client, self.working_filter_dir)
 
     id_to_return_value = {
-      "1": {"name": "Blah", "jql":"foo", "id": "1"},
-      "2": {"name": "Flippy", "jql":"zim", "id": "2"}
+      "/api/2/filter/1": {"name": "Blah", "jql":"foo", "id": "1"},
+      "/api/2/filter/2": {"name": "Flippy", "jql":"zim", "id": "2"}
     }
     def rv(passed_id):
       return id_to_return_value[passed_id]
     mock_client._get.side_effect = rv
 
-    f.sync_filters_from_server
+    f.sync_filters_from_server(["1", "2"])
 
+    mock_client._get.assert_any_call("/api/2/filter/1")
+    mock_client._get.assert_any_call("/api/2/filter/2")
+
+    # filter 2 path should be the same as before, and the stored json should keep the comment
+    self.assertEqual(filter_2_path, f._id_to_file["2"])
+    with open(filter_2_path) as f_in:
+      loaded_filter_2 = json.load(f_in)
+      exp = id_to_return_value["/api/2/filter/2"].copy()
+      exp["comment"] = local_filter_2["comment"]
+      self.assertEqual(exp, loaded_filter_2)
+
+    self.assertIn("1", f._id_to_file)
+    self.assertIn("1", f._id_to_filter)
     pass

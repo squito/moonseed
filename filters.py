@@ -84,16 +84,16 @@ class Filters:
     return self._filter_dir + f"/{filter_name}_{filter_id}.json"
 
 
-  def sync_filters_from_dir(self, filter_dir):
+  def sync_filters_from_dir(self):
     """Sync filters between a directory and the jira server.
        Filters already in the dir will be uploaded to the server -- they can be
        completely new filters, or just updates to existing filters.
 
        All existing files in the dir must be json files representing jira filters."""
 
-    files = os.listdir(filter_dir)
+    files = os.listdir(self._filter_dir)
     for f in files:
-      full_path = os.path.normpath(filter_dir + "/" + f)
+      full_path = os.path.normpath(self._filter_dir + "/" + f)
       with open(full_path) as in_f:
         loaded_filter = json.load(in_f)
         new_filter = self.update_filter(loaded_filter, orig_file = full_path)
@@ -111,9 +111,22 @@ class Filters:
 
        If there is a comment in the local file, it will be retained.
        """
-    for f in os.listdir(self._filter_dir):
-      with open(self._filter_dir + f) as f_in:
-        actual = json.load(f_in)
-        self.assertEqual(exp[f], actual)
-
+    for fid in filter_ids:
+      from_server = self.get_filter(fid)
+      comment_to_add = None
+      orig_file = self._id_to_file.get(fid)
+      if orig_file is not None:
+        file_to_write = orig_file
+        with open(orig_file) as f_in:
+          orig_loaded = json.load(f_in)
+          comment_to_add = orig_loaded.get("comment")
+      else:
+        file_to_write = self.__suggested_filter_filename(from_server["id"], from_server["name"])
+      to_write = from_server
+      if comment_to_add is not None:
+        to_write["comment"] = comment_to_add
+      with open(file_to_write, "w") as f_out:
+        json.dump(to_write, f_out)
+      self._id_to_file[fid] = file_to_write
+      self._id_to_filter[fid] = to_write
 
