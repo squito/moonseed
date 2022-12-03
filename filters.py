@@ -98,7 +98,7 @@ class Filters:
         loaded_filter = json.load(in_f)
         new_filter = self.update_filter(loaded_filter, orig_file = full_path)
       with open(full_path, "w") as out_f:
-        json.dump(new_filter, out_f)
+        json.dump(new_filter, out_f, indent=2)
 
 
   def sync_filters_from_server(self, filter_ids):
@@ -126,7 +126,7 @@ class Filters:
       if comment_to_add is not None:
         to_write["comment"] = comment_to_add
       with open(file_to_write, "w") as f_out:
-        json.dump(to_write, f_out)
+        json.dump(to_write, f_out, indent=2)
       self._id_to_file[fid] = file_to_write
       self._id_to_filter[fid] = to_write
 
